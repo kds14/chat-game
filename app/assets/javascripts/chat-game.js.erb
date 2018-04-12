@@ -1,0 +1,60 @@
+let type = "WebGL"
+if(!PIXI.utils.isWebGLSupported()) {
+    type = "canvas"
+}
+
+PIXI.utils.sayHello(type);
+
+const playerSpeed = 5;
+
+let app = new PIXI.Application({width: 640, height: 480});
+
+document.body.appendChild(app.view);
+
+
+let stage = new PIXI.Container();
+stage.interactive = true;
+//stage.height = 480;
+//stage.width = 640;
+stage.hitArea = new PIXI.Rectangle(0, 0, 640, 480);
+
+
+stage.on("mousedown", onClick);
+
+app.stage = stage;
+let player = PIXI.Sprite.fromImage("<%= image_path('face.png') %>");
+app.stage.addChild(player);
+
+function onClick(e)
+{
+    player.x = e.data.global.x
+    player.y = e.data.global.y
+}
+
+function onKeyDown(e)
+{
+    e.preventDefault();
+    switch(e.key)
+    {
+        case "ArrowUp":
+            player.y -= playerSpeed;
+            break;
+        case "ArrowDown":
+            player.y += playerSpeed;
+            break;
+        case "ArrowRight":
+            player.x += playerSpeed;
+            break;
+        case "ArrowLeft":
+            player.x -= playerSpeed;
+            break;
+        default:
+            if (e.key.length === 1)
+            {
+                console.log(e.key);
+            }
+            break;
+    }
+}
+
+window.addEventListener("keydown", onKeyDown, false);
