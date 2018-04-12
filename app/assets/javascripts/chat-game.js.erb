@@ -1,38 +1,74 @@
-let type = "WebGL"
-if(!PIXI.utils.isWebGLSupported()) {
-    type = "canvas"
-}
-
-PIXI.utils.sayHello(type);
-
 const playerSpeed = 5;
+const gameWidth = 640;
+const gameHeight = 480;
+const backgroundColor = 0x29a329;
 
-let app = new PIXI.Application({
-    width: 640,
-    height: 480,
-    backgroundColor: 0x29a329
+const app = new PIXI.Application({
+    width: gameWidth,
+    height: gameHeight,
+    backgroundColor: backgroundColor
 });
-
 document.body.appendChild(app.view);
 
-let stage = new PIXI.Container();
-stage.interactive = true;
-stage.hitArea = new PIXI.Rectangle(0, 0, 640, 480);
+const menuStage = new PIXI.Container();
+const gameStage = new PIXI.Container();
 
-stage.on("mousedown", onClick);
+gameStage.interactive = true;
+gameStage.hitArea = new PIXI.Rectangle(0, 0, gameWidth, gameHeight);
+gameStage.on("mousedown", onClick);
 
-app.stage = stage;
-let player = PIXI.Sprite.fromImage("<%= image_path('face.png') %>");
-player.x = 50;
-player.y = 50;
-player.goal = null;
-app.stage.addChild(player);
+const loader = PIXI.loader;
+loader.add('joinButton', "<%= image_path('join_button.png') %>");
+loader.add('player', "<%= image_path('face.png') %>")
+const sprites = {};
+
+app.stage = menuStage;
 
 let prevTime = 0;
 
+loader.load((loader, resources) =>
+{
+    sprites.joinButton = new PIXI.Sprite(resources.joinButton.texture);
+
+    sprites.joinButton.anchor.set(0.5);
+    sprites.joinButton.x = gameWidth / 2;
+    sprites.joinButton.y = gameHeight / 2;
+    sprites.joinButton.interactable
+    sprites.joinButton.interactive = true;
+    sprites.joinButton.buttonMode = true;
+    sprites.joinButton.on("pointerdown", onJoinClick);
+    menuStage.addChild(sprites.joinButton);
+
+    sprites.player = new PIXI.Sprite(resources.player.texture);
+
+    sprites.player.anchor.set(0.5);
+    sprites.player.x = 50;
+    sprites.player.y = 50;
+    sprites.player.goal = null;
+    gameStage.addChild(sprites.player);
+
+    window.addEventListener("keydown", onKeyDown, false);
+
+    gameLoop(0);
+});
+
+function onJoinClick(e)
+{
+    app.stage = gameStage;
+}
+
 function update(delta)
 {
-    handleMovement(player);
+    switch(app.stage)
+    {
+        case menuStage:
+            break;
+        case gameStage:
+            handleMovement(sprites.player);
+            break;
+        default:
+            break;
+    }
 }
 
 function gameLoop(currentTime)
@@ -42,8 +78,6 @@ function gameLoop(currentTime)
     prevTime = currentTime;
     window.requestAnimationFrame(gameLoop);
 }
-
-gameLoop(0);
 
 function playerPos(player)
 {
@@ -56,15 +90,14 @@ function handleMovement(player)
 {
     if (player.goal !== null)
     {
-        let pos = playerPos(player);
         // calculate distance to move x and y
-        let xDelta = player.goal.x - pos.x;
-        let yDelta = player.goal.y - pos.y;
+        let xDelta = player.goal.x - player.x;
+        let yDelta = player.goal.y - player.y;
 
-        if (Math.abs(xDelta) + Math.abs(yDelta) < 10)
+        if (Math.abs(xDelta) + Math.abs(yDelta) < 5)
         {
-            player.x = player.goal.x - player.width / 2;
-            player.y = player.goal.y - player.height / 2;
+            player.x = player.goal.x;
+            player.y = player.goal.y;
             player.goal = null;
         }
 
@@ -80,9 +113,9 @@ function handleMovement(player)
 
 function onClick(e)
 {
-    player.goal = { x:0, y:0 }
-    player.goal.x = e.data.global.x
-    player.goal.y = e.data.global.y
+    sprites.player.goal = { x:0, y:0 }
+    sprites.player.goal.x = e.data.global.x
+    sprites.player.goal.y = e.data.global.y
 }
 
 function onKeyDown(e)
@@ -94,4 +127,3 @@ function onKeyDown(e)
     }
 }
 
-window.addEventListener("keydown", onKeyDown, false);
