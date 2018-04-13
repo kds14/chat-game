@@ -2,6 +2,9 @@ const playerSpeed = 5;
 const gameWidth = 640;
 const gameHeight = 480;
 const backgroundColor = 0x29a329;
+const buttonWidth = 128;
+const buttonHeight = 64;
+const url = "http://localhost:3000/";
 
 const app = new PIXI.Application({
     width: gameWidth,
@@ -21,25 +24,20 @@ const loader = PIXI.loader;
 loader.add('joinButton', "<%= image_path('join_button.png') %>");
 loader.add('player', "<%= image_path('face.png') %>")
 const sprites = {};
+let otherPlayers = [];
+let playerTexture;
 
 app.stage = menuStage;
 
 let prevTime = 0;
 
+createButton(gameWidth / 2, gameHeight / 2 - buttonHeight, "JOIN", onJoinClick, menuStage);
+createButton(gameWidth / 2, gameHeight / 2 + buttonHeight, "HOST", onHostClick, menuStage);
+
 loader.load((loader, resources) =>
 {
-    sprites.joinButton = new PIXI.Sprite(resources.joinButton.texture);
-
-    sprites.joinButton.anchor.set(0.5);
-    sprites.joinButton.x = gameWidth / 2;
-    sprites.joinButton.y = gameHeight / 2;
-    sprites.joinButton.interactable
-    sprites.joinButton.interactive = true;
-    sprites.joinButton.buttonMode = true;
-    sprites.joinButton.on("pointerdown", onJoinClick);
-    menuStage.addChild(sprites.joinButton);
-
-    sprites.player = new PIXI.Sprite(resources.player.texture);
+    playerTexture = resources.player.texture
+    sprites.player = new PIXI.Sprite(playerTexture);
 
     sprites.player.anchor.set(0.5);
     sprites.player.x = 50;
@@ -52,9 +50,75 @@ loader.load((loader, resources) =>
     gameLoop(0);
 });
 
+function createButton(x, y, text, onButtonClick, stage)
+{
+    const button = new PIXI.Graphics();
+    button.beginFill(0xFFFFFF);
+    button.lineStyle(5, 0x000000);
+    button.drawRect(x - (buttonWidth / 2), y - (buttonHeight / 2),
+        buttonWidth, buttonHeight);
+    button.buttonMode = true;
+    button.interactive = true;
+    button.on("pointerdown", onButtonClick);
+    const btext = new PIXI.Text(text);
+    btext.anchor.set(0.5);
+    btext.x = x;
+    btext.y = y;
+    button.addChild(btext);
+    stage.addChild(button);
+}
+
 function onJoinClick(e)
 {
+    console.log(sprites.player)
+    console.log(gameStage)
     app.stage = gameStage;
+}
+
+function onLoad()
+{
+    console.log(this.responseText);
+    let r = JSON.parse(this.responseText);
+    if(r !== null && r.hasOwnProperty("room"))
+    {
+        app.stage = gameStage;
+        update_players(r.room.players, r.client_id);
+    }
+}
+
+function update_players(players, client_id)
+{
+    for(let p in players)
+    {
+        let r = null;
+        if(client_id === players[p].id)
+        {
+            r = sprites.player 
+        }
+        else
+        {   
+            let r = otherPlayers.find(item => item.id == players[p].id);
+            if(r === null)
+            {
+                r = new PIXI.Sprite(playerTexture);
+                r.x = players[p].goal_x
+                r.y = players[p].goal_y
+                r.id = players[p].id
+                otherPlayers.push(r)
+                gameStage.addChild(r);
+            }
+        }
+        r.goal = { x: players[p].goal_x, y: players[p].goal_y };
+    }
+}
+
+function onHostClick(e)
+{
+    let req = new XMLHttpRequest();
+    req.open("GET", url + "game/create");
+    req.addEventListener("load", onLoad);
+    req.send();
+    console.log(req);
 }
 
 function update(delta)
@@ -65,6 +129,10 @@ function update(delta)
             break;
         case gameStage:
             handleMovement(sprites.player);
+            for(let p in otherPlayers)
+            {
+                handleMovement(p);
+            }
             break;
         default:
             break;
