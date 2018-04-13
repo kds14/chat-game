@@ -7,11 +7,12 @@ class Player
   attr_accessor :goal_x
   attr_accessor :goal_y
 
-  def initialize(ip, id)
+  def initialize(ip)
     @ip = ip
-    @id = @@current_id++
-    @goal_x = 0
-    @goal_y = 0
+    @id = @@current_id
+    @@current_id += 1
+    @goal_x = 50
+    @goal_y = 50
   end
 
   def set_goal(x, y)

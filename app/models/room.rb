@@ -8,7 +8,7 @@ class Room
     end
 
     def add_player(ip)
-        @players << Player.new(ip, @players.length - 1)
+        @players << Player.new(ip)
     end
 
     def client_id(ip)

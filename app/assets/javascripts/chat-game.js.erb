@@ -5,6 +5,12 @@ const backgroundColor = 0x29a329;
 const buttonWidth = 128;
 const buttonHeight = 64;
 const url = "http://localhost:3000/";
+const menuColorMain = 0xFFFFFF;
+const menuColorSec = 0x000000;
+const joinMenuTop = gameHeight / 2 - 192;
+const joinMenuLeft = gameWidth / 2 - 128;
+const joinMenuWidth = 256;
+const joinMenuHeight = 384;
 
 const app = new PIXI.Application({
     width: gameWidth,
@@ -15,6 +21,7 @@ document.body.appendChild(app.view);
 
 const menuStage = new PIXI.Container();
 const gameStage = new PIXI.Container();
+const joinStage = new PIXI.Container();
 
 gameStage.interactive = true;
 gameStage.hitArea = new PIXI.Rectangle(0, 0, gameWidth, gameHeight);
@@ -26,14 +33,20 @@ loader.add('player', "<%= image_path('face.png') %>")
 const sprites = {};
 let otherPlayers = [];
 let playerTexture;
+let prevTime = 0;
 
 app.stage = menuStage;
 
-let prevTime = 0;
+// menuStage setup
+createButton(gameWidth / 2, gameHeight / 2, "JOIN", onJoinClick, menuStage);
 
-createButton(gameWidth / 2, gameHeight / 2 - buttonHeight, "JOIN", onJoinClick, menuStage);
-createButton(gameWidth / 2, gameHeight / 2 + buttonHeight, "HOST", onHostClick, menuStage);
+// joinStage setup
+let joinMenu = createRectangle(menuColorMain, menuColorSec, 5, joinMenuLeft,
+    joinMenuTop, joinMenuWidth, joinMenuHeight);
+joinStage.addChild(joinMenu);
+getRoomsRequest();
 
+// after all assets are loaded
 loader.load((loader, resources) =>
 {
     playerTexture = resources.player.texture
@@ -50,13 +63,79 @@ loader.load((loader, resources) =>
     gameLoop(0);
 });
 
+function onGetRoomsResponse()
+{
+    // populate joinMenu with interactable room buttons
+    let r = JSON.parse(this.responseText);
+    if(r !== null && r.hasOwnProperty("rooms") && r.rooms.length > 0)
+    {
+        for(let i = 0; i < r.rooms.length; i++)
+        {
+            let s = "Room " + i + " (" + r.rooms[i].players.length + " players)"
+            let style = new PIXI.TextStyle({fill: "#000000"});
+            const text = new PIXI.Text(s, style);
+            text.anchor.set(0.5);
+            text.x = gameWidth / 2;
+            text.y = joinMenuTop + + text.height * (i+1);
+            text.interactive = true;
+            text.mouseover = function(e)
+            {
+                text.style.fill = "#00e64d";
+            }
+            text.mouseout = function(e)
+            {
+                text.style.fill = "#000000";
+            }
+            text.on("pointerdown", function(e)
+            {
+                joinRoomRequest(i);
+            });
+            joinMenu.addChild(text);
+        }
+    }
+}
+
+function onJoinRoomResponse()
+{
+    console.log(this.responseText);
+    let r = JSON.parse(this.responseText);
+    if(r !== null && r.hasOwnProperty("room"))
+    {
+        app.stage = gameStage;
+        update_players(r.room.players, r.client_id);
+    }
+}
+
+function joinRoomRequest(room)
+{
+    let req = new XMLHttpRequest();
+    req.open("POST", url + "game/join");
+    req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    req.addEventListener("load", onJoinRoomResponse);
+    req.send("room=" + room);
+}
+
+function getRoomsRequest()
+{
+    let req = new XMLHttpRequest();
+    req.open("GET", url + "game/rooms");
+    req.addEventListener("load", onGetRoomsResponse);
+    req.send();
+}
+
+function createRectangle(fColor, lColor, lthickness, x, y, w, h)
+{
+    const rect = new PIXI.Graphics();
+    rect.beginFill(fColor);
+    rect.lineStyle(lthickness, lColor);
+    rect.drawRect(x, y, w, h);
+    return rect;
+}
+
 function createButton(x, y, text, onButtonClick, stage)
 {
-    const button = new PIXI.Graphics();
-    button.beginFill(0xFFFFFF);
-    button.lineStyle(5, 0x000000);
-    button.drawRect(x - (buttonWidth / 2), y - (buttonHeight / 2),
-        buttonWidth, buttonHeight);
+    const button = createRectangle(menuColorMain, menuColorSec, 5, x - (buttonWidth / 2),
+        y - (buttonHeight /2), buttonWidth, buttonHeight);
     button.buttonMode = true;
     button.interactive = true;
     button.on("pointerdown", onButtonClick);
@@ -70,14 +149,11 @@ function createButton(x, y, text, onButtonClick, stage)
 
 function onJoinClick(e)
 {
-    console.log(sprites.player)
-    console.log(gameStage)
-    app.stage = gameStage;
+    app.stage = joinStage;
 }
 
 function onLoad()
 {
-    console.log(this.responseText);
     let r = JSON.parse(this.responseText);
     if(r !== null && r.hasOwnProperty("room"))
     {
@@ -93,12 +169,13 @@ function update_players(players, client_id)
         let r = null;
         if(client_id === players[p].id)
         {
-            r = sprites.player 
+            //continue;
+            r = sprites.player;
         }
         else
         {   
-            let r = otherPlayers.find(item => item.id == players[p].id);
-            if(r === null)
+            r = otherPlayers.find(item => item.id === players[p].id);
+            if(r == null)
             {
                 r = new PIXI.Sprite(playerTexture);
                 r.x = players[p].goal_x
@@ -118,7 +195,6 @@ function onHostClick(e)
     req.open("GET", url + "game/create");
     req.addEventListener("load", onLoad);
     req.send();
-    console.log(req);
 }
 
 function update(delta)
@@ -156,7 +232,7 @@ function playerPos(player)
 
 function handleMovement(player)
 {
-    if (player.goal !== null)
+    if (player.goal != null)
     {
         // calculate distance to move x and y
         let xDelta = player.goal.x - player.x;
@@ -167,6 +243,7 @@ function handleMovement(player)
             player.x = player.goal.x;
             player.y = player.goal.y;
             player.goal = null;
+            return;
         }
 
         let theta = Math.atan(xDelta / yDelta);
