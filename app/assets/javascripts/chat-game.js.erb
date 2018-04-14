@@ -1,16 +1,29 @@
 const playerSpeed = 5;
+
 const gameWidth = 640;
 const gameHeight = 480;
 const backgroundColor = 0x29a329;
+
 const buttonWidth = 128;
 const buttonHeight = 64;
-const url = "http://localhost:3000/";
+
+const url = window.location.href;
+
 const menuColorMain = 0xFFFFFF;
 const menuColorSec = 0x000000;
+
 const joinMenuTop = gameHeight / 2 - 192;
 const joinMenuLeft = gameWidth / 2 - 128;
 const joinMenuWidth = 256;
 const joinMenuHeight = 384;
+
+const chatBarHeight = 32;
+const chatBarTop = gameHeight - chatBarHeight - 1;
+
+const borderBot = chatBarTop - 32;
+const borderLeft = 32;
+const borderRight = gameWidth - 32;
+const borderTop = 32;
 
 let room = -1;
 
@@ -29,7 +42,6 @@ gameStage.interactive = true;
 gameStage.hitArea = new PIXI.Rectangle(0, 0, gameWidth, gameHeight);
 
 const loader = PIXI.loader;
-loader.add('joinButton', "<%= image_path('join_button.png') %>");
 loader.add('player', "<%= image_path('face.png') %>")
 const sprites = {};
 let otherPlayers = [];
@@ -45,6 +57,26 @@ createButton(gameWidth / 2, gameHeight / 2, "JOIN", onJoinClick, menuStage);
 let joinMenu = createRectangle(menuColorMain, menuColorSec, 5, joinMenuLeft,
     joinMenuTop, joinMenuWidth, joinMenuHeight);
 joinStage.addChild(joinMenu);
+
+// chat setup
+let chatBar = createRectangle(menuColorMain, menuColorSec, 1, 1, chatBarTop,
+    gameWidth - 1, chatBarHeight);
+gameStage.addChild(chatBar);
+let currentText = "Type up to 25 characters and press enter to chat";
+let placeholder = true;
+let textGraphic = new PIXI.Text(currentText);
+textGraphic.x = 16;
+textGraphic.y = chatBarTop + 2;
+gameStage.addChild(textGraphic);
+
+// move tutorial
+const moveTutText = "Move with the arrow keys"
+const moveTutorial = new PIXI.Text(moveTutText, {align:"center"});
+let isMoveTut = true;
+moveTutorial.x = gameWidth / 2;
+moveTutorial.y = 32;
+moveTutorial.anchor.set(0.5);
+gameStage.addChild(moveTutorial);
 
 // after all assets are loaded
 loader.load((loader, resources) =>
@@ -67,6 +99,8 @@ function newPlayer(id, x, y, other=true)
     r.id = id;
     r.x = x;
     r.y = y;
+    r.text = "";
+    r.textCounter = null;
     if(other)
     {
         otherPlayers.push(r);
@@ -74,13 +108,79 @@ function newPlayer(id, x, y, other=true)
     return r;
 }
 
+function sendText()
+{
+    let data = { "id": sprites.player.id,
+        "text": currentText, "room": room }
+    App.game.sendText(data);
+}
+
+function displaySpeech(text, player)
+{
+    console.log("DISPLAY");
+    console.log(player);
+    if(player.text != null) player.removeChild(player.text);
+    player.text = new PIXI.Text(text, {align: "center"})
+    player.text.anchor.set(0.5);
+    player.addChild(player.text);
+    player.text.x = 0;
+    player.text.y = -48;
+    player.textCounter = 300;
+}
+
+function decreaseTextCounter(player)
+{
+    if(player.textCounter != null)
+    {
+        console.log(player);
+        player.textCounter -= 1;
+        if(player.textCounter <= 0)
+        {
+            player.removeChild(player.text);
+            player.textCounter = null;
+        }
+    }
+}
+
+function handleTyping(key)
+{
+    console.log("HANDLE IT");
+    switch(key)
+    {
+        case "Backspace":
+            if(currentText.length > 0)
+                currentText = currentText.substring(0, currentText.length - 1)
+            break;
+        case "Enter":
+            sendText();
+            displaySpeech(currentText, sprites.player);
+            currentText = "";
+            break;
+        default:
+            if(key.length === 1 && currentText.length <= 25 || placeholder)
+            {
+                if(placeholder)
+                {
+                    placeholder = false;
+                    currentText = "";
+                }
+                currentText += key;
+                console.log(currentText);
+            }
+            break;
+    }
+    textGraphic.text = currentText;
+}
+
 function onGetRoomsResponse()
 {   
     if(this.responseText == null || this.responseText.length === 0)
-        return
+    {
+        return;
+    }
     // populate joinMenu with interactable room buttons
     let r = JSON.parse(this.responseText);
-    if(r !== null && r.hasOwnProperty("rooms") && r.rooms.length > 0)
+    if(r != null && r.hasOwnProperty("rooms") && r.rooms.length > 0)
     {
         for(let i = 0; i < r.rooms.length; i++)
         {
@@ -218,6 +318,12 @@ function update(delta)
         case menuStage:
             break;
         case gameStage:
+            decreaseTextCounter(sprites.player);
+            for(let i = 0; i < otherPlayers.length; i++)
+            {
+                const pp = otherPlayers[i];
+                decreaseTextCounter(pp);
+            }
             break;
         default:
             break;
@@ -236,13 +342,39 @@ function movePlayer(player, x, y)
 {
     player.position.x = x;
     player.position.y = y;
+    keepPlayerInBorders(sprites.player);
+}
+
+function keepPlayerInBorders(player)
+{
+    let x = player.position.x;
+    let y = player.position.y;
+    if(x == null || x <= borderLeft)
+    {
+        x = borderLeft;
+    }
+    else if(x >= borderRight)
+    {
+        x = borderRight;
+    }
+    if(y == null || y <= borderTop)
+    {
+        y = borderTop;
+    }
+    else if(y >= borderBot)
+    {
+        y = borderBot;
+    }
+    player.position.x = x;
+    player.position.y = y;
 }
 
 function onKeyDown(e)
 {
     e.preventDefault();
-    x = sprites.player.position.x;
-    y = sprites.player.position.y;
+    let x = sprites.player.position.x;
+    let y = sprites.player.position.y;
+    let move = false;
     switch(e.key)
     {
         case "ArrowUp":
@@ -258,16 +390,19 @@ function onKeyDown(e)
             x = sprites.player.position.x - playerSpeed;
             break;
         default:
-            if (e.key.length === 1)
-            {
-                console.log(e.key);
-            }
+            handleTyping(e.key);
             break;
     }
-    if(y !== 0 || x !== 0)
+    if(sprites.player.y - y !== 0 || sprites.player.x - x !== 0)
     {
+        if(isMoveTut)
+        {
+            gameStage.removeChild(moveTutorial);
+            isMoveTut = false;
+        }
         movePlayer(sprites.player, x, y);
-        let data = { "id": sprites.player.id, "pos": {x:x,y:y}, "room": room }
+        let data = { "id": sprites.player.id,
+            "pos": {x:sprites.player.x,y:sprites.player.y}, "room": room }
         App.game.movePlayer(data);
     }
 }

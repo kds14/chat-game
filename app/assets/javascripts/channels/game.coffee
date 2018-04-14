@@ -15,12 +15,19 @@ App.game = App.cable.subscriptions.create "GameChannel",
       when "move"
         p = otherPlayers.find((x) -> x.id == data["id"])
         if p?
-          p.position.x = data["pos"].x
+          p.position.x = data["pos"].x 
           p.position.y = data["pos"].y
       when "join"
         p = otherPlayers.find((x) -> x.id == data["id"])
         if !p?
           newPlayer(data["id"], data["pos"].x, data["pos"].y)
+      when "sendText"
+        p = otherPlayers.find((x) -> x.id == data["id"])
+        if p?
+          displaySpeech data["text"], p
 
   movePlayer: (data) ->
     @perform("move", data)
+
+  sendText: (data) ->
+    @perform("sendText", data)

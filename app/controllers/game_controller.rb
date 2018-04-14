@@ -2,7 +2,6 @@ class GameController < ApplicationController
   MAX_ROOMS = 8
 
   def index
-    Room.new()
   end
 
   def create

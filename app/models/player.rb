@@ -31,7 +31,7 @@ class Player
   def random_pos
     t = Time.now
     rng = Random.new(t.to_i)
-    @x = rng.rand(640).to_i
-    @y = rng.rand(480).to_i
+    @x = rng.rand(200...300).to_i
+    @y = rng.rand(200...300).to_i
   end
 end

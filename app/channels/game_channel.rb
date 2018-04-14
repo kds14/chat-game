@@ -27,4 +27,14 @@ class GameChannel < ApplicationCable::Channel
     end
   end
 
+  def sendText(data)
+    if !data.include?("text") || !data.include?("id")
+      return
+    end
+    text = data["text"]
+    if text.length <= 25
+      ActionCable.server.broadcast("GameChannel", data)
+    end
+  end
+
 end
