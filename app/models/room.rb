@@ -1,18 +1,22 @@
 class Room
-
+    @@rooms = []
+    @@next_room_id = 0
     max_players = 10
+
     attr_accessor :players
+    attr_accessor :room_id
 
     def initialize()
+        @@rooms << self
+        @room_id = @@next_room_id
+        @@next_room_id += @@next_room_id
         @players = []
     end
 
     def add_player(ip)
-        @players << Player.new(ip)
-    end
-
-    def client_id(ip)
-        "#{@players.select{ |item| item.ip == ip}[0].id}"
+        p = Player.new(ip)
+        @players << p
+        p
     end
 
     def to_json

@@ -14,3 +14,4 @@
 //= require activestorage
 //= require turbolinks
 //= require pixi.min.js
+//= require cable.js

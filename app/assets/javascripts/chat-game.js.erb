@@ -12,6 +12,8 @@ const joinMenuLeft = gameWidth / 2 - 128;
 const joinMenuWidth = 256;
 const joinMenuHeight = 384;
 
+let room = -1;
+
 const app = new PIXI.Application({
     width: gameWidth,
     height: gameHeight,
@@ -25,7 +27,6 @@ const joinStage = new PIXI.Container();
 
 gameStage.interactive = true;
 gameStage.hitArea = new PIXI.Rectangle(0, 0, gameWidth, gameHeight);
-gameStage.on("mousedown", onClick);
 
 const loader = PIXI.loader;
 loader.add('joinButton', "<%= image_path('join_button.png') %>");
@@ -44,27 +45,39 @@ createButton(gameWidth / 2, gameHeight / 2, "JOIN", onJoinClick, menuStage);
 let joinMenu = createRectangle(menuColorMain, menuColorSec, 5, joinMenuLeft,
     joinMenuTop, joinMenuWidth, joinMenuHeight);
 joinStage.addChild(joinMenu);
-getRoomsRequest();
 
 // after all assets are loaded
 loader.load((loader, resources) =>
 {
     playerTexture = resources.player.texture
-    sprites.player = new PIXI.Sprite(playerTexture);
 
-    sprites.player.anchor.set(0.5);
-    sprites.player.x = 50;
-    sprites.player.y = 50;
-    sprites.player.goal = null;
-    gameStage.addChild(sprites.player);
+    // values set later
+    sprites.player = newPlayer(-1, -10, -10, false)
 
     window.addEventListener("keydown", onKeyDown, false);
 
     gameLoop(0);
 });
 
-function onGetRoomsResponse()
+function newPlayer(id, x, y, other=true)
 {
+    let r = new PIXI.Sprite(playerTexture);
+    r.anchor.set(0.5);
+    gameStage.addChild(r);
+    r.id = id;
+    r.x = x;
+    r.y = y;
+    if(other)
+    {
+        otherPlayers.push(r);
+    }
+    return r;
+}
+
+function onGetRoomsResponse()
+{   
+    if(this.responseText == null || this.responseText.length === 0)
+        return
     // populate joinMenu with interactable room buttons
     let r = JSON.parse(this.responseText);
     if(r !== null && r.hasOwnProperty("rooms") && r.rooms.length > 0)
@@ -97,11 +110,11 @@ function onGetRoomsResponse()
 
 function onJoinRoomResponse()
 {
-    console.log(this.responseText);
     let r = JSON.parse(this.responseText);
-    if(r !== null && r.hasOwnProperty("room"))
+    if(r != null && r.hasOwnProperty("room"))
     {
         app.stage = gameStage;
+        room = r.room.room_id
         update_players(r.room.players, r.client_id);
     }
 }
@@ -150,6 +163,7 @@ function createButton(x, y, text, onButtonClick, stage)
 function onJoinClick(e)
 {
     app.stage = joinStage;
+    getRoomsRequest();
 }
 
 function onLoad()
@@ -171,21 +185,21 @@ function update_players(players, client_id)
         {
             //continue;
             r = sprites.player;
+            r.id = players[p].id
         }
         else
         {   
             r = otherPlayers.find(item => item.id === players[p].id);
             if(r == null)
             {
-                r = new PIXI.Sprite(playerTexture);
-                r.x = players[p].goal_x
-                r.y = players[p].goal_y
-                r.id = players[p].id
-                otherPlayers.push(r)
-                gameStage.addChild(r);
+                r = newPlayer(players[p].id, 0, 0)
             }
         }
-        r.goal = { x: players[p].goal_x, y: players[p].goal_y };
+        if (r != null)
+        {
+            r.position.x = players[p].x;
+            r.position.y = players[p].y;
+        }
     }
 }
 
@@ -204,11 +218,6 @@ function update(delta)
         case menuStage:
             break;
         case gameStage:
-            handleMovement(sprites.player);
-            for(let p in otherPlayers)
-            {
-                handleMovement(p);
-            }
             break;
         default:
             break;
@@ -223,52 +232,43 @@ function gameLoop(currentTime)
     window.requestAnimationFrame(gameLoop);
 }
 
-function playerPos(player)
+function movePlayer(player, x, y)
 {
-    let x = player.x + player.width / 2;
-    let y = player.y + player.height / 2;
-    return { x:x, y:y };
-}
-
-function handleMovement(player)
-{
-    if (player.goal != null)
-    {
-        // calculate distance to move x and y
-        let xDelta = player.goal.x - player.x;
-        let yDelta = player.goal.y - player.y;
-
-        if (Math.abs(xDelta) + Math.abs(yDelta) < 5)
-        {
-            player.x = player.goal.x;
-            player.y = player.goal.y;
-            player.goal = null;
-            return;
-        }
-
-        let theta = Math.atan(xDelta / yDelta);
-        let x = Math.abs(Math.sin(theta));
-        let y = Math.abs(Math.cos(theta));
-
-        player.x += Math.sign(xDelta) * x * playerSpeed;
-        player.y += Math.sign(yDelta) * y * playerSpeed;
-
-    }
-}
-
-function onClick(e)
-{
-    sprites.player.goal = { x:0, y:0 }
-    sprites.player.goal.x = e.data.global.x
-    sprites.player.goal.y = e.data.global.y
+    player.position.x = x;
+    player.position.y = y;
 }
 
 function onKeyDown(e)
 {
     e.preventDefault();
-    if (e.key.length === 1)
+    x = sprites.player.position.x;
+    y = sprites.player.position.y;
+    switch(e.key)
     {
-        console.log(e.key);
+        case "ArrowUp":
+            y = sprites.player.position.y - playerSpeed;
+            break;
+        case "ArrowDown":
+            y = sprites.player.position.y + playerSpeed;
+            break;
+        case "ArrowRight":
+            x = sprites.player.position.x + playerSpeed;
+            break;
+        case "ArrowLeft":
+            x = sprites.player.position.x - playerSpeed;
+            break;
+        default:
+            if (e.key.length === 1)
+            {
+                console.log(e.key);
+            }
+            break;
+    }
+    if(y !== 0 || x !== 0)
+    {
+        movePlayer(sprites.player, x, y);
+        let data = { "id": sprites.player.id, "pos": {x:x,y:y}, "room": room }
+        App.game.movePlayer(data);
     }
 }
 
