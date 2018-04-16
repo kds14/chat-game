@@ -117,8 +117,6 @@ function sendText()
 
 function displaySpeech(text, player)
 {
-    console.log("DISPLAY");
-    console.log(player);
     if(player.text != null) player.removeChild(player.text);
     player.text = new PIXI.Text(text, {align: "center"})
     player.text.anchor.set(0.5);
@@ -132,7 +130,6 @@ function decreaseTextCounter(player)
 {
     if(player.textCounter != null)
     {
-        console.log(player);
         player.textCounter -= 1;
         if(player.textCounter <= 0)
         {
@@ -144,7 +141,6 @@ function decreaseTextCounter(player)
 
 function handleTyping(key)
 {
-    console.log("HANDLE IT");
     switch(key)
     {
         case "Backspace":
@@ -157,7 +153,7 @@ function handleTyping(key)
             currentText = "";
             break;
         default:
-            if(key.length === 1 && currentText.length <= 25 || placeholder)
+            if(key.length === 1 && (currentText.length <= 25 || placeholder))
             {
                 if(placeholder)
                 {
@@ -165,7 +161,6 @@ function handleTyping(key)
                     currentText = "";
                 }
                 currentText += key;
-                console.log(currentText);
             }
             break;
     }
