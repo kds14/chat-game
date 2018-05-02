@@ -1,24 +1,13 @@
-# README
+# Chat Game
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+A simple chat game made with rails backend. Note: Removing disconnected players isn't support in this version. However, it is supported in the Express version here: https://github.com/kds14/chat-game2
 
-Things you may want to cover:
+## Getting Started
 
-* Ruby version
+Navigate to the chat-game folder in a terminal and type
 
-* System dependencies
+bundle install
 
-* Configuration
+bin/rails server
 
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+Then open up two windows of any web browser (only tested in Chromium but should work with all modern web browsers) and connect to 127.0.01:3000 on both browsers. And then press join and click a room. Follow the instructions on screen to learn how to send messages and move.
