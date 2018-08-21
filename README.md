@@ -4,7 +4,9 @@ A simple chat game made with rails backend. Note: Removing disconnected players 
 
 ## Getting Started
 
-Navigate to the chat-game folder in a terminal and type
+The node version of this is hosted here: http://35.237.122.227:3000/
+
+If you want to test this version, navigate to the chat-game folder in a terminal and type
 
 bundle install
 
